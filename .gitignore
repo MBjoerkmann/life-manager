@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Database (local data)
+*.db
+*.db-shm
+*.db-wal
+
+# Environment
+.env
+
+# Docker
+*.log
+
+# OS
+.DS_Store

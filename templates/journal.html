@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Journal — Life Manager{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; margin-bottom:1.5rem;">
+  <h1>Work Journal</h1>
+  <div style="display:flex; gap:0.5rem; align-items:center;">
+    <div class="filter-tabs" style="margin-bottom:0;">
+      <a href="/journal?days=7" class="filter-tab {% if days_range == 7 %}active{% endif %}">7 days</a>
+      <a href="/journal?days=14" class="filter-tab {% if days_range == 14 %}active{% endif %}">14 days</a>
+      <a href="/journal?days=30" class="filter-tab {% if days_range == 30 %}active{% endif %}">30 days</a>
+      <a href="/journal?days=90" class="filter-tab {% if days_range == 90 %}active{% endif %}">90 days</a>
+    </div>
+    <a href="/journal/export.md?days={{ days_range }}" class="btn btn-ghost btn-sm" download>&#11123; Export .md</a>
+  </div>
+</div>
+
+{% if journal_days %}
+  {% for day in journal_days %}
+  <div class="section" style="margin-top:1.25rem;">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:0.6rem;">
+      <div style="font-size:0.85rem; font-weight:700; color:var(--text);">{{ day.date }}</div>
+      {% if day.total_minutes > 0 %}
+      <span class="text-muted text-sm">{{ day.total_minutes }} min focused</span>
+      {% endif %}
+    </div>
+
+    {# Sessions #}
+    {% if day.sessions %}
+    <div style="display:flex; flex-direction:column; gap:0.35rem; margin-bottom:0.5rem;">
+      {% for s in day.sessions %}
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:0.6rem 0.85rem;">
+        <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+          <span class="text-muted" style="font-size:0.75rem; font-variant-numeric:tabular-nums;">{{ s.started_at[11:16] }}–{{ s.ended_at[11:16] if s.ended_at else '?' }}</span>
+          <span class="text-sm" style="font-weight:500;">{{ s.task_title }}</span>
+          <span class="text-muted" style="font-size:0.72rem;">{{ s.project_title }} &#8250; {{ s.goal_title }}</span>
+          <span class="text-muted" style="font-size:0.72rem; margin-left:auto;">{{ s.minutes }}m</span>
+        </div>
+        {% if s.notes %}
+        <p class="text-sm" style="margin-top:0.35rem; color:var(--text); line-height:1.5; padding-left:0.1rem;">{{ s.notes }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Completions without sessions (marked done directly) #}
+    {% if day.completions %}
+    {% set session_tasks = day.sessions | map(attribute='task_title') | list %}
+    {% set standalone = [] %}
+    {% for c in day.completions %}
+      {% if c.task_title not in session_tasks %}
+        {% set _ = standalone.append(c) %}
+      {% endif %}
+    {% endfor %}
+    {% if standalone %}
+    <div style="display:flex; flex-direction:column; gap:0.25rem;">
+      {% for c in standalone %}
+      <div style="display:flex; align-items:center; gap:0.5rem; padding:0.35rem 0.5rem;">
+        <span style="color:var(--green); font-size:0.8rem;">&#10003;</span>
+        <span class="text-sm">{{ c.task_title }}</span>
+        <span class="text-muted" style="font-size:0.72rem;">{{ c.project_title }} &#8250; {{ c.goal_title }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+<div class="empty-state" style="margin-top:2rem;">
+  No activity in the last {{ days_range }} days. Start a focus session to begin building your journal.
+</div>
+{% endif %}
+
+{% endblock %}

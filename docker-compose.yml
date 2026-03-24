@@ -1,0 +1,18 @@
+services:
+  life-manager:
+    build: .
+    ports:
+      - "8001:8001"
+    volumes:
+      - life-manager-data:/data
+    environment:
+      - DB_PATH=/data/life_manager.db
+      - AI_PROVIDER=${AI_PROVIDER:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - AI_MODEL=${AI_MODEL:-}
+    restart: unless-stopped
+
+volumes:
+  life-manager-data:

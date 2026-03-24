@@ -1,0 +1,103 @@
+{% set sid = subtask['id'] if subtask is mapping else subtask.id %}
+{% set stitle = subtask['title'] if subtask is mapping else subtask.title %}
+{% set sdesc = subtask['description'] if subtask is mapping else subtask.description %}
+{% set snotes = subtask['notes'] if subtask is mapping else subtask.notes %}
+{% set sstatus = subtask['status'] if subtask is mapping else subtask.status %}
+{% set smin = subtask['estimated_minutes'] if subtask is mapping else subtask.estimated_minutes %}
+
+<div id="subtask-{{ sid }}" style="{% if sstatus == 'done' %}opacity:0.6;{% elif sstatus == 'skipped' %}opacity:0.35;{% endif %}">
+  <details class="subtask-expand" style="background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden;">
+    {# Header row — always visible #}
+    <summary style="display:flex; align-items:center; gap:0.6rem; padding:0.55rem 0.75rem; cursor:pointer; list-style:none;">
+      {% if sstatus == 'done' %}
+      <span style="color:var(--green); font-size:0.9rem; flex-shrink:0;">&#10003;</span>
+      {% elif sstatus == 'skipped' %}
+      <span style="color:var(--muted); font-size:0.85rem; flex-shrink:0;">&#8594;</span>
+      {% else %}
+      <span style="width:16px; height:16px; border-radius:50%; border:2px solid var(--border); flex-shrink:0;"></span>
+      {% endif %}
+
+      <span class="text-sm" style="font-weight:500; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; {% if sstatus == 'done' %}text-decoration:line-through;{% endif %}">{{ stitle }}</span>
+      <span class="text-muted" style="font-size:0.72rem; white-space:nowrap; flex-shrink:0;">{{ smin }}m</span>
+
+      {# Indicator that there are notes #}
+      {% if snotes %}
+      <span style="width:6px; height:6px; border-radius:50%; background:var(--accent); flex-shrink:0;" title="Has notes"></span>
+      {% endif %}
+
+      <span class="text-muted" style="font-size:0.7rem; flex-shrink:0;">&#9660;</span>
+    </summary>
+
+    {# Expanded content #}
+    <div style="padding:0 0.75rem 0.75rem; border-top:1px solid var(--border);">
+
+      {# AI description / guidance #}
+      {% if sdesc %}
+      <div style="margin-top:0.6rem; padding:0.5rem 0.65rem; background:rgba(79,142,247,0.04); border-radius:var(--radius-sm); border-left:3px solid rgba(79,142,247,0.2);">
+        <div style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.2rem;">Guidance</div>
+        <p class="text-sm" style="line-height:1.5; color:var(--text);">{{ sdesc }}</p>
+      </div>
+      {% endif %}
+
+      {# Notes textarea — interactive form field #}
+      <div style="margin-top:0.6rem;">
+        <div style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Your notes</div>
+        <textarea name="notes"
+                  placeholder="Write your notes, answers, or work here..."
+                  style="width:100%; min-height:80px; font-size:0.85rem; line-height:1.5;"
+                  hx-post="/subtasks/{{ sid }}/notes"
+                  hx-trigger="change, keyup changed delay:1s"
+                  hx-swap="none">{{ snotes or '' }}</textarea>
+      </div>
+
+      {# Action buttons #}
+      <div style="display:flex; gap:0.35rem; align-items:center; margin-top:0.6rem; flex-wrap:wrap;">
+        {% if sstatus in ('done', 'skipped') %}
+        <button class="btn btn-ghost btn-sm" style="font-size:0.72rem; padding:0.2rem 0.5rem;"
+                hx-post="/subtasks/{{ sid }}/undo"
+                hx-target="#subtask-{{ sid }}"
+                hx-swap="outerHTML">Undo</button>
+        {% else %}
+        <button class="btn btn-success btn-sm" style="font-size:0.72rem; padding:0.2rem 0.5rem;"
+                hx-post="/subtasks/{{ sid }}/done"
+                hx-target="#subtask-{{ sid }}"
+                hx-swap="outerHTML">&#10003; Done</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:0.72rem; padding:0.2rem 0.5rem;"
+                hx-post="/subtasks/{{ sid }}/skip"
+                hx-target="#subtask-{{ sid }}"
+                hx-swap="outerHTML">Skip</button>
+        {% endif %}
+
+        {# Edit popover #}
+        <details style="position:relative; margin-left:auto;">
+          <summary class="btn btn-ghost btn-sm" style="font-size:0.72rem; padding:0.2rem 0.5rem; cursor:pointer;">&#9998; Edit</summary>
+          <div style="position:absolute; right:0; top:100%; margin-top:0.3rem; z-index:50; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:0.75rem; min-width:260px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+            <form hx-post="/subtasks/{{ sid }}/edit"
+                  hx-target="#subtask-{{ sid }}"
+                  hx-swap="outerHTML">
+              <div class="form-group" style="margin-bottom:0.5rem;">
+                <label>Title</label>
+                <input type="text" name="title" value="{{ stitle }}" required />
+              </div>
+              <div class="form-group" style="margin-bottom:0.5rem;">
+                <label>Description</label>
+                <input type="text" name="description" value="{{ sdesc or '' }}" />
+              </div>
+              <div class="form-group" style="margin-bottom:0.5rem;">
+                <label>Est. minutes</label>
+                <input type="number" name="estimated_minutes" value="{{ smin }}" min="5" max="60" />
+              </div>
+              <div style="display:flex; gap:0.4rem;">
+                <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                <button type="button" class="btn btn-danger btn-sm"
+                        hx-post="/subtasks/{{ sid }}/delete"
+                        hx-target="#subtask-{{ sid }}"
+                        hx-swap="outerHTML">Delete</button>
+              </div>
+            </form>
+          </div>
+        </details>
+      </div>
+    </div>
+  </details>
+</div>

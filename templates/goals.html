@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Goals — Life Manager{% endblock %}
+
+{% block content %}
+<div class="section-header">
+  <h1>Goals</h1>
+</div>
+
+{# Add goal form #}
+<details id="add-goal-details" style="margin-bottom:1.5rem;">
+  <summary class="btn btn-primary" style="display:inline-flex; cursor:pointer;">+ New Goal</summary>
+  <form class="inline-form mt-1"
+        hx-post="/goals"
+        hx-target="#goal-list"
+        hx-swap="beforeend"
+        hx-on::after-request="this.reset(); document.getElementById('add-goal-details').removeAttribute('open')">
+    <div class="form-group">
+      <label>Goal title</label>
+      <input type="text" name="title" required placeholder="e.g. Become a better developer" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Priority (1–5)</label>
+        <select name="priority">
+          <option value="5">5 — Critical</option>
+          <option value="4">4 — High</option>
+          <option value="3" selected>3 — Medium</option>
+          <option value="2">2 — Low</option>
+          <option value="1">1 — Someday</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description (optional)</label>
+      <textarea name="description" rows="2" placeholder="Why does this goal matter?"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Create Goal</button>
+  </form>
+</details>
+
+{# Goal list #}
+<div class="goal-list" id="goal-list">
+  {% for item in goals_with_projects %}
+    {% set goal     = item.goal %}
+    {% set projects = item.projects %}
+    {% include "partials/goal_item.html" %}
+  {% else %}
+    <div class="empty-state" id="no-goals-msg">
+      No goals yet. Create your first one above.
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

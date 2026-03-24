@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Tasks — Life Manager{% endblock %}
+
+{% block content %}
+<div class="section-header">
+  <h1>Tasks</h1>
+</div>
+
+{# Filter tabs #}
+<div class="filter-tabs">
+  <a href="/tasks"              class="filter-tab {% if not current_status %}active{% endif %}">All</a>
+  <a href="/tasks?status=todo"         class="filter-tab {% if current_status == 'todo' %}active{% endif %}">Todo</a>
+  <a href="/tasks?status=in_progress"  class="filter-tab {% if current_status == 'in_progress' %}active{% endif %}">In progress</a>
+  <a href="/tasks?status=done"         class="filter-tab {% if current_status == 'done' %}active{% endif %}">Done</a>
+  <a href="/tasks?status=skipped"      class="filter-tab {% if current_status == 'skipped' %}active{% endif %}">Skipped</a>
+</div>
+
+{# Add task form #}
+<details id="add-task-details" style="margin-bottom:1.5rem;">
+  <summary class="btn btn-primary" style="display:inline-flex; cursor:pointer;">+ New Task</summary>
+  <form class="inline-form mt-1"
+        hx-post="/tasks"
+        hx-target="#task-list-container"
+        hx-swap="afterbegin"
+        hx-on::after-request="this.reset(); document.getElementById('add-task-details').removeAttribute('open')">
+    <div class="form-group">
+      <label>Task title</label>
+      <input type="text" name="title" required placeholder="e.g. Write unit tests" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Project</label>
+        <select name="project_id" required>
+          <option value="" disabled selected>Select a project…</option>
+          {% for p in all_projects %}
+          <option value="{{ p['id'] }}">{{ p['title'] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Estimated minutes</label>
+        <input type="number" name="estimated_minutes" value="45" min="5" max="480" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description (optional)</label>
+      <textarea name="description" rows="2" placeholder="What needs to be done?"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Add Task</button>
+  </form>
+</details>
+
+{# Tasks grouped by project #}
+<div id="task-list-container">
+{% set ns = namespace(any_tasks=false) %}
+{% for item in projects_with_tasks %}
+  {% set project = item.project %}
+  {% set tasks   = item.tasks %}
+  {% if tasks %}
+    {% set ns.any_tasks = true %}
+    {% set pid    = project['id'] %}
+    {% set ptitle = project['title'] %}
+    {% set ppri   = project['priority'] %}
+    {% set pdeadline = project['deadline'] %}
+
+    <div class="section" style="margin-top:1.5rem;">
+      <div class="section-header" style="margin-bottom:0.6rem;">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span class="priority-pip pri-{{ ppri }}"></span>
+          <h2 style="font-size:1rem;">{{ ptitle }}</h2>
+          {% if pdeadline %}<span class="text-muted text-sm">due {{ pdeadline }}</span>{% endif %}
+        </div>
+
+        {# Inline "add task to this project" #}
+        <details>
+          <summary class="btn btn-ghost btn-sm" style="display:inline-flex; cursor:pointer;">+ Task</summary>
+          <form class="inline-form mt-1"
+                hx-post="/tasks"
+                hx-target="#task-list-{{ pid }}"
+                hx-swap="beforeend"
+                hx-on::after-request="this.reset(); this.closest('details').removeAttribute('open')">
+            <input type="hidden" name="project_id" value="{{ pid }}" />
+            <div class="form-group">
+              <label>Task title</label>
+              <input type="text" name="title" required placeholder="e.g. Write tests" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Est. minutes</label>
+                <input type="number" name="estimated_minutes" value="45" min="5" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Description (optional)</label>
+              <input type="text" name="description" placeholder="Optional notes" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Add</button>
+          </form>
+        </details>
+      </div>
+
+      <div class="project-list" id="task-list-{{ pid }}">
+        {% for task in tasks %}
+          {% include "partials/task_row.html" %}
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+{% endfor %}
+
+{% if not ns.any_tasks %}
+  <div class="empty-state">
+    No tasks found{% if current_status %} with status "{{ current_status }}"{% endif %}.
+    {% if not current_status %}
+    <br/>Go to <a href="/goals">Goals</a> to create projects, then add tasks here.
+    {% endif %}
+  </div>
+{% endif %}
+</div>
+{% endblock %}

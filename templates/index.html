@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Life Manager{% endblock %}
+
+{% block content %}
+
+{# Macro for rendering a dashboard task card — must be defined before use #}
+{% macro _render_dashboard_card(task) %}
+  {% set tid = task.id %}
+  {% set reason = task_reasons.get(task.id) if task_reasons else none %}
+  {% set session_obj = {"id": task.active_session_id, "started_at": task.active_session_started_at} if task.active_session_id else none %}
+
+  <div class="task-card status-{{ task.status }}" id="task-{{ task.id }}">
+    <div class="task-card-header">
+      <div style="flex:1;">
+        <div class="task-card-title">{{ task.title }}</div>
+        <div class="task-card-meta mt-1">
+          <span class="badge badge-{{ task.status }}">{{ task.status.replace('_', ' ') }}</span>
+          <span class="text-muted">{{ task.project_title or '—' }}</span>
+          {% if task.goal_title %}
+          <span class="text-muted">&#8250; {{ task.goal_title }}</span>
+          {% endif %}
+          <span class="text-muted">&#9201; {{ task.estimated_minutes }}m</span>
+        </div>
+      </div>
+    </div>
+
+    {% if reason %}
+    <p class="text-sm" style="color:var(--accent); opacity:0.75; line-height:1.5;">{{ reason }}</p>
+    {% elif task.description %}
+    <p class="text-sm text-muted">{{ task.description }}</p>
+    {% endif %}
+
+    {% if task.active_session_id %}
+    <div class="session-panel"
+         data-timer="{{ task.id }}"
+         data-started-at="{{ task.active_session_started_at }}">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <div style="font-size:0.75rem; color:var(--muted); margin-bottom:0.2rem;">SESSION IN PROGRESS</div>
+          <div class="timer-display" id="{{ task.id }}-clock">0:00</div>
+        </div>
+      </div>
+      <form hx-post="/sessions/{{ task.active_session_id }}/end"
+            hx-target="#task-{{ task.id }}"
+            hx-swap="outerHTML"
+            style="display:flex; flex-direction:column; gap:0.5rem;">
+        <input type="text" name="notes" placeholder="Optional notes…" />
+        <div style="display:flex; gap:0.4rem;">
+          <button type="submit" class="btn btn-success btn-sm">&#10003; Done</button>
+          <button type="button" class="btn btn-ghost btn-sm"
+                  hx-post="/tasks/{{ task.id }}/pause"
+                  hx-swap="none">&#9646;&#9646; Pause</button>
+        </div>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if task.status not in ('done', 'skipped') %}
+    <div class="task-card-actions">
+      {% if not task.active_session_id %}
+      <button class="btn btn-primary btn-sm"
+              hx-post="/tasks/{{ task.id }}/start"
+              hx-target="#task-{{ task.id }}"
+              hx-swap="outerHTML">
+        &#9654; Start
+      </button>
+      <button class="btn btn-success btn-sm"
+              hx-post="/tasks/{{ task.id }}/done"
+              hx-target="#task-{{ task.id }}"
+              hx-swap="outerHTML">
+        &#10003; Done
+      </button>
+      <button class="btn btn-ghost btn-sm"
+              hx-post="/tasks/{{ task.id }}/skip"
+              hx-target="#task-{{ task.id }}"
+              hx-swap="outerHTML">
+        &#8594; Skip
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+<div style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+  <h1>{{ today }}</h1>
+  {% if performance and performance.streak > 0 %}
+  <span style="font-size:0.85rem; color:var(--yellow);">&#128293; {{ performance.streak }}-day streak</span>
+  {% endif %}
+</div>
+
+{# Completion banner #}
+{% if completed %}
+<div class="card" style="margin-top:1rem; border-color:rgba(62,207,142,0.3); background:rgba(62,207,142,0.04); text-align:center; padding:0.9rem;">
+  <span style="font-weight:600; color:var(--green);">Session complete. Nice work.</span>
+</div>
+{% endif %}
+
+{# Active session bar (shown when user exits focus mode) #}
+{% if active_session %}
+<div class="card" style="margin-top:1rem; border-color:rgba(79,142,247,0.3); background:rgba(79,142,247,0.04); display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+  <div>
+    <span class="text-sm" style="color:var(--accent); font-weight:600;">Session active</span>
+    <span class="text-sm" style="color:var(--muted); margin-left:0.5rem;">{{ active_session['task_title'] }}</span>
+  </div>
+  <a href="/" class="btn btn-primary btn-sm">Return to focus</a>
+</div>
+{% endif %}
+
+{# AI Coaching Section #}
+{% if greeting %}
+<div class="card" style="margin-top:1.5rem; border-color:rgba(79,142,247,0.15); background:rgba(79,142,247,0.02);">
+  <p style="font-size:0.95rem; line-height:1.65; color:var(--text);">{{ greeting }}</p>
+
+  {% if coaching_note %}
+  <p style="font-size:0.88rem; line-height:1.6; color:var(--yellow); margin-top:0.75rem; padding:0.6rem 0.75rem; background:rgba(247,201,79,0.06); border-radius:var(--radius-sm); border-left:3px solid rgba(247,201,79,0.3);">{{ coaching_note }}</p>
+  {% endif %}
+
+  {% if motivation %}
+  <p style="font-size:0.85rem; color:var(--muted); margin-top:0.65rem; font-style:italic;">{{ motivation }}</p>
+  {% endif %}
+
+  <form method="post" action="/briefing/generate" style="margin-top:0.75rem; display:inline;">
+    <button type="submit" class="btn btn-ghost btn-sm" style="font-size:0.72rem; padding:0.25rem 0.55rem;">Regenerate</button>
+  </form>
+</div>
+{% elif ai_enabled %}
+<div class="card" style="margin-top:1.5rem; border-color:rgba(79,142,247,0.1);">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+    <p class="text-muted text-sm">Get a personalised daily plan and coaching note.</p>
+    <form method="post" action="/briefing/generate" style="display:inline;">
+      <button type="submit" class="btn btn-primary btn-sm">Plan my day</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{# Stats strip #}
+<div class="stats-strip">
+  <div class="stat-card">
+    <div class="stat-number">{{ scheduled | length }}</div>
+    <div class="stat-label">Today</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number">{{ week_done }}</div>
+    <div class="stat-label">This week</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number">{% if performance %}{{ performance.completion_rate }}%{% else %}—{% endif %}</div>
+    <div class="stat-label">Completion</div>
+  </div>
+</div>
+
+
+{# Today's schedule — grouped by time block if AI provided them #}
+<div class="section">
+  <div class="section-header">
+    <h2>Today</h2>
+    <div style="display:flex; gap:0.5rem;">
+      <a href="/week" class="btn btn-ghost btn-sm">Week</a>
+      <a href="/tasks" class="btn btn-ghost btn-sm">All tasks</a>
+    </div>
+  </div>
+
+  {% if scheduled %}
+
+  {# Group tasks by time block #}
+  {% set time_order = ["morning", "midday", "afternoon", "evening"] %}
+  {% set has_blocks = task_time_blocks and task_time_blocks | length > 0 %}
+
+  {% if has_blocks %}
+    {# Render by time block #}
+    {% for block in time_order %}
+      {% set block_tasks = [] %}
+      {% for task in scheduled %}
+        {% if task_time_blocks.get(task.id) == block %}
+          {% set _ = block_tasks.append(task) %}
+        {% endif %}
+      {% endfor %}
+
+      {% if block_tasks %}
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:0.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.6rem; padding-left:0.15rem;">{{ block }}</div>
+        <div class="task-list">
+          {% for task in block_tasks %}
+            {{ _render_dashboard_card(task) }}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    {% endfor %}
+
+    {# Tasks without a time block #}
+    {% set unblocked = [] %}
+    {% for task in scheduled %}
+      {% if not task_time_blocks.get(task.id) %}
+        {% set _ = unblocked.append(task) %}
+      {% endif %}
+    {% endfor %}
+    {% if unblocked %}
+    <div style="margin-bottom:1.5rem;">
+      <div class="task-list">
+        {% for task in unblocked %}
+          {{ _render_dashboard_card(task) }}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  {% else %}
+    {# No time blocks — flat list #}
+    <div class="task-list" id="daily-task-list">
+      {% for task in scheduled %}
+        {{ _render_dashboard_card(task) }}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <p>No tasks scheduled yet.</p>
+    <p class="mt-1">Add goals and projects, then tasks will appear here.</p>
+    <a href="/goals" class="btn btn-primary" style="margin-top:1rem; display:inline-flex;">Get started</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

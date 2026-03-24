@@ -1,0 +1,89 @@
+{% set tid    = task['id']                 if task is mapping else task.id %}
+{% set ttitle = task['title']              if task is mapping else task.title %}
+{% set tdesc  = task['description']        if task is mapping else task.description %}
+{% set tmin   = task['estimated_minutes']  if task is mapping else task.estimated_minutes %}
+{% set ts     = task['status']             if task is mapping else task.status %}
+{% set tsub_total = task['subtask_total']  if (task is mapping and 'subtask_total' in task) else 0 %}
+{% set tsub_done  = task['subtask_done']   if (task is mapping and 'subtask_done' in task) else 0 %}
+
+<div id="task-row-{{ tid }}">
+  {# View row #}
+  <div class="project-item" style="flex-wrap:wrap;">
+    <div style="display:flex; align-items:center; gap:0.6rem; flex:1; min-width:0;">
+      <span class="badge badge-{{ ts }}">{{ ts.replace('_', ' ') }}</span>
+      <a href="/tasks/{{ tid }}/plan" class="text-sm" style="font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text);">{{ ttitle }}</a>
+      <span class="text-muted text-sm" style="white-space:nowrap;">{{ tmin }}m</span>
+      {% if tsub_total > 0 %}
+      <span class="text-muted" style="font-size:0.7rem; white-space:nowrap;">({{ tsub_done }}/{{ tsub_total }})</span>
+      {% endif %}
+    </div>
+    <div style="display:flex; gap:0.3rem; align-items:center;">
+      <a href="/tasks/{{ tid }}/plan" class="btn btn-ghost btn-sm" style="font-size:0.72rem; padding:0.2rem 0.5rem;">Plan</a>
+      {% if ts in ('done', 'skipped') %}
+      <button class="btn btn-ghost btn-sm"
+              hx-post="/tasks/{{ tid }}/todo"
+              hx-target="#task-row-{{ tid }}"
+              hx-swap="outerHTML">Undo</button>
+      {% else %}
+      <button class="btn btn-success btn-sm"
+              hx-post="/tasks/{{ tid }}/done"
+              hx-target="#task-row-{{ tid }}"
+              hx-swap="outerHTML">&#10003;</button>
+      <button class="btn btn-ghost btn-sm"
+              hx-post="/tasks/{{ tid }}/skip"
+              hx-target="#task-row-{{ tid }}"
+              hx-swap="outerHTML">&#8594;</button>
+      {% endif %}
+
+      {# Edit/delete popover #}
+      <details style="position:relative;">
+        <summary class="btn btn-ghost btn-sm" style="font-size:0.72rem; padding:0.2rem 0.5rem; cursor:pointer;">&#9998;</summary>
+        <div style="position:absolute; right:0; top:100%; margin-top:0.3rem; z-index:50; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:0.75rem; min-width:280px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+          <form hx-post="/tasks/{{ tid }}/edit"
+                hx-target="#task-row-{{ tid }}"
+                hx-swap="outerHTML">
+            <div class="form-group" style="margin-bottom:0.5rem;">
+              <label>Title</label>
+              <input type="text" name="title" value="{{ ttitle }}" required />
+            </div>
+            <div class="form-group" style="margin-bottom:0.5rem;">
+              <label>Description</label>
+              <textarea name="description" rows="2">{{ tdesc or '' }}</textarea>
+            </div>
+            <div class="form-group" style="margin-bottom:0.5rem;">
+              <label>Est. minutes</label>
+              <input type="number" name="estimated_minutes" value="{{ tmin }}" min="5" max="480" />
+            </div>
+            <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+              <button type="submit" class="btn btn-primary btn-sm">Save</button>
+              <button type="button" class="btn btn-danger btn-sm"
+                      hx-post="/tasks/{{ tid }}/delete"
+                      hx-target="#task-row-{{ tid }}"
+                      hx-swap="outerHTML"
+                      onclick="return confirm('Delete this task and all its steps?')">Delete</button>
+            </div>
+          </form>
+          <div style="border-top:1px solid var(--border); margin-top:0.6rem; padding-top:0.6rem;">
+            <div style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.4rem;">Schedule</div>
+            <form hx-post="/tasks/{{ tid }}/schedule"
+                  hx-target="#task-row-{{ tid }}"
+                  hx-swap="outerHTML"
+                  style="display:flex; gap:0.4rem; align-items:center;">
+              <input type="date" name="scheduled_date"
+                     value="{{ task['scheduled_date'] if task is mapping and task['scheduled_date'] else '' }}"
+                     style="flex:1; font-size:0.8rem; padding:0.3rem 0.5rem;" />
+              <button type="submit" class="btn btn-ghost btn-sm">Set</button>
+            </form>
+            {% set tdate = task['scheduled_date'] if task is mapping else none %}
+            {% if tdate %}
+            <button class="btn btn-ghost btn-sm" style="margin-top:0.4rem; font-size:0.72rem; width:100%;"
+                    hx-post="/tasks/{{ tid }}/unschedule"
+                    hx-target="#task-row-{{ tid }}"
+                    hx-swap="outerHTML">Move to backlog</button>
+            {% endif %}
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,67 @@
+<div class="card" style="border-color:rgba(79,142,247,0.2); background:rgba(79,142,247,0.02); margin-bottom:1.25rem;">
+
+  {% if result.summary %}
+  <p class="text-sm" style="color:var(--accent); margin-bottom:0.75rem; line-height:1.5;">{{ result.summary }}</p>
+  {% endif %}
+
+  <script type="application/json" id="suggestion-data">{{ result | tojson }}</script>
+
+  <form id="suggestion-form" method="post" action="/tasks/{{ task_id }}/subtasks/apply">
+    <input type="hidden" id="selected-subtasks-json" name="selected_json" value="" />
+
+    <div style="display:flex; flex-direction:column; gap:0.4rem; margin-bottom:0.75rem;">
+      {% for step in result.subtasks %}
+      <div style="display:flex; align-items:flex-start; gap:0.6rem; padding:0.5rem 0.6rem; border-radius:var(--radius-sm); background:var(--surface2);">
+        <input type="checkbox" class="step-check" data-idx="{{ loop.index0 }}"
+               checked
+               style="width:14px; height:14px; margin-top:3px; cursor:pointer; accent-color:var(--accent); flex-shrink:0;" />
+        <div style="flex:1; min-width:0;">
+          <div class="text-sm" style="font-weight:500;">{{ step.title }}</div>
+          {% if step.description %}
+          <div class="text-muted" style="font-size:0.75rem; margin-top:0.1rem;">{{ step.description }}</div>
+          {% endif %}
+        </div>
+        <span class="text-muted" style="font-size:0.72rem; white-space:nowrap; flex-shrink:0;">{{ step.estimated_minutes }}m</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+      <span id="step-selection-summary" class="text-muted text-sm"></span>
+      <div style="display:flex; gap:0.5rem;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('suggestions-area').innerHTML = ''">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">Add Selected Steps</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+(function() {
+  var data = JSON.parse(document.getElementById('suggestion-data').textContent);
+
+  function updateCount() {
+    var n = document.querySelectorAll('.step-check:checked').length;
+    document.getElementById('step-selection-summary').textContent = n + ' step' + (n !== 1 ? 's' : '') + ' selected';
+  }
+
+  document.querySelectorAll('.step-check').forEach(function(cb) {
+    cb.addEventListener('change', updateCount);
+  });
+
+  document.getElementById('suggestion-form').addEventListener('submit', function(e) {
+    var selected = [];
+    document.querySelectorAll('.step-check:checked').forEach(function(cb) {
+      selected.push(data.subtasks[parseInt(cb.dataset.idx)]);
+    });
+    if (selected.length === 0) {
+      e.preventDefault();
+      alert('Select at least one step.');
+      return;
+    }
+    document.getElementById('selected-subtasks-json').value = JSON.stringify(selected);
+  });
+
+  updateCount();
+})();
+</script>

@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Plan — {{ goal['title'] }} — Life Manager{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:baseline; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+  <a href="/goals" class="text-muted text-sm" style="text-decoration:none;">&#8592; Goals</a>
+  <span class="text-muted text-sm">/</span>
+  <h1 style="font-size:1.3rem;">{{ goal['title'] }}</h1>
+</div>
+
+{% if not plan and not error %}
+<div class="card" style="border-color:rgba(79,142,247,0.15); background:rgba(79,142,247,0.02);">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+    <p class="text-muted text-sm">Generate a phased roadmap with projects and tasks for this goal.</p>
+    {% if ai_enabled %}
+    <form method="post" action="/goals/{{ goal['id'] }}/plan" style="display:inline;">
+      <button type="submit" class="btn btn-primary btn-sm">Generate Roadmap</button>
+    </form>
+    {% else %}
+    <span class="text-muted text-sm">Set an AI provider key to enable planning.</span>
+    {% endif %}
+  </div>
+</div>
+
+{% elif error %}
+<div class="card" style="border-color:rgba(247,111,111,0.3); background:rgba(247,111,111,0.04);">
+  <p class="text-sm" style="color:var(--red);">{{ error }}</p>
+  <form method="post" action="/goals/{{ goal['id'] }}/plan" style="margin-top:0.75rem; display:inline;">
+    <button type="submit" class="btn btn-ghost btn-sm">Try again</button>
+  </form>
+</div>
+
+{% elif plan %}
+
+{# Embed plan as JSON for JS to read safely #}
+<script type="application/json" id="plan-data">{{ plan | tojson }}</script>
+
+{# Summary card #}
+<div class="card" style="border-color:rgba(79,142,247,0.15); background:rgba(79,142,247,0.02); margin-bottom:2rem;">
+  <div style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.5rem;">Roadmap</div>
+  <p style="font-size:0.95rem; line-height:1.65;">{{ plan.roadmap_summary }}</p>
+</div>
+
+<form id="plan-form" method="post" action="/goals/{{ goal['id'] }}/apply-plan">
+  <input type="hidden" id="selected-json" name="selected_json" value="" />
+
+  {% for phase in plan.phases %}
+  {% set pi = loop.index0 %}
+  <div style="margin-bottom:2.5rem;">
+
+    {# Phase header #}
+    <div style="display:flex; align-items:baseline; gap:0.75rem; margin-bottom:0.35rem;">
+      <span style="font-size:0.7rem; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em;">{{ phase.duration }}</span>
+      <h2 style="font-size:1.05rem;">{{ phase.name }}</h2>
+    </div>
+    <p class="text-muted text-sm" style="margin-bottom:1rem;">{{ phase.description }}</p>
+
+    {# Projects in this phase #}
+    {% for project in phase.projects %}
+    {% set qi = loop.index0 %}
+    <div class="plan-project-card" id="proj-{{ pi }}-{{ qi }}"
+         style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:0.75rem; overflow:hidden;">
+
+      {# Project header row #}
+      <div style="padding:0.85rem 1.1rem; display:flex; align-items:center; gap:0.75rem; border-bottom:1px solid var(--border); background:var(--surface2);">
+        <input type="checkbox" class="project-check"
+               data-pi="{{ pi }}" data-qi="{{ qi }}"
+               id="proj-cb-{{ pi }}-{{ qi }}"
+               checked
+               style="width:16px; height:16px; cursor:pointer; accent-color:var(--accent);" />
+        <label for="proj-cb-{{ pi }}-{{ qi }}" style="font-weight:600; font-size:0.95rem; cursor:pointer; flex:1;">
+          {{ project.title }}
+        </label>
+        <span class="badge badge-todo" style="font-size:0.7rem;">P{{ project.priority }}</span>
+      </div>
+
+      {# Project description + tasks #}
+      <div class="proj-body-{{ pi }}-{{ qi }}" style="padding:0.75rem 1.1rem;">
+        {% if project.description %}
+        <p class="text-sm text-muted" style="margin-bottom:0.75rem;">{{ project.description }}</p>
+        {% endif %}
+
+        <div style="display:flex; flex-direction:column; gap:0.4rem;">
+          {% for task in project.tasks %}
+          {% set ti = loop.index0 %}
+          <div style="display:flex; align-items:flex-start; gap:0.65rem; padding:0.5rem 0.6rem; border-radius:var(--radius-sm); background:var(--surface2);">
+            <input type="checkbox" class="task-check"
+                   data-pi="{{ pi }}" data-qi="{{ qi }}" data-ti="{{ ti }}"
+                   id="task-cb-{{ pi }}-{{ qi }}-{{ ti }}"
+                   checked
+                   style="width:14px; height:14px; margin-top:3px; cursor:pointer; accent-color:var(--accent); flex-shrink:0;" />
+            <label for="task-cb-{{ pi }}-{{ qi }}-{{ ti }}" style="flex:1; cursor:pointer;">
+              <div class="text-sm" style="font-weight:500;">{{ task.title }}</div>
+              {% if task.description %}
+              <div class="text-sm text-muted" style="margin-top:0.15rem;">{{ task.description }}</div>
+              {% endif %}
+            </label>
+            <span class="text-muted" style="font-size:0.75rem; white-space:nowrap; flex-shrink:0;">{{ task.estimated_minutes }}m</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  {# Sticky submit bar #}
+  <div style="position:sticky; bottom:0; background:var(--bg); border-top:1px solid var(--border); padding:1rem 0; margin-top:1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+    <span id="selection-summary" class="text-muted text-sm"></span>
+    <div style="display:flex; gap:0.75rem;">
+      <a href="/goals" class="btn btn-ghost">Cancel</a>
+      <button type="submit" class="btn btn-primary" id="create-btn">Create Selected</button>
+    </div>
+  </div>
+</form>
+
+<script>
+(function() {
+  var planData = JSON.parse(document.getElementById('plan-data').textContent);
+
+  function updateSummary() {
+    var projCount = document.querySelectorAll('.project-check:checked').length;
+    var taskCount = document.querySelectorAll('.task-check:checked').length;
+    document.getElementById('selection-summary').textContent =
+      projCount + ' project' + (projCount !== 1 ? 's' : '') +
+      ', ' + taskCount + ' task' + (taskCount !== 1 ? 's' : '') + ' selected';
+  }
+
+  // When a project is unchecked, uncheck its tasks too
+  document.querySelectorAll('.project-check').forEach(function(pcb) {
+    pcb.addEventListener('change', function() {
+      var pi = this.dataset.pi;
+      var qi = this.dataset.qi;
+      var checked = this.checked;
+      document.querySelectorAll('.task-check[data-pi="' + pi + '"][data-qi="' + qi + '"]').forEach(function(tcb) {
+        tcb.checked = checked;
+      });
+      // Dim the project body
+      var body = document.querySelector('.proj-body-' + pi + '-' + qi);
+      if (body) body.style.opacity = checked ? '' : '0.4';
+      updateSummary();
+    });
+  });
+
+  // When a task is checked, ensure its project is checked too
+  document.querySelectorAll('.task-check').forEach(function(tcb) {
+    tcb.addEventListener('change', function() {
+      if (this.checked) {
+        var pcb = document.querySelector('.project-check[data-pi="' + this.dataset.pi + '"][data-qi="' + this.dataset.qi + '"]');
+        if (pcb) pcb.checked = true;
+      }
+      updateSummary();
+    });
+  });
+
+  // Build selected JSON on submit
+  document.getElementById('plan-form').addEventListener('submit', function(e) {
+    var projects = [];
+
+    document.querySelectorAll('.project-check:checked').forEach(function(pcb) {
+      var pi = parseInt(pcb.dataset.pi);
+      var qi = parseInt(pcb.dataset.qi);
+      var projectData = planData.phases[pi].projects[qi];
+
+      var tasks = [];
+      document.querySelectorAll('.task-check[data-pi="' + pi + '"][data-qi="' + qi + '"]:checked').forEach(function(tcb) {
+        var ti = parseInt(tcb.dataset.ti);
+        tasks.push(projectData.tasks[ti]);
+      });
+
+      projects.push({
+        title: projectData.title,
+        description: projectData.description,
+        priority: projectData.priority,
+        tasks: tasks
+      });
+    });
+
+    if (projects.length === 0) {
+      e.preventDefault();
+      alert('Select at least one project to create.');
+      return;
+    }
+
+    document.getElementById('selected-json').value = JSON.stringify({ projects: projects });
+  });
+
+  updateSummary();
+})();
+</script>
+
+{% endif %}
+{% endblock %}

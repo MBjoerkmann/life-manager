@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ project['title'] }} — Life Manager{% endblock %}
+
+{% block content %}
+
+{# Breadcrumb #}
+<div style="display:flex; align-items:baseline; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+  <a href="/goals" class="text-muted text-sm" style="text-decoration:none;">Goals</a>
+  <span class="text-muted text-sm">/</span>
+  <span class="text-muted text-sm">{{ goal['title'] }}</span>
+  <span class="text-muted text-sm">/</span>
+  <span class="text-sm" style="font-weight:600;">{{ project['title'] }}</span>
+</div>
+
+{# Project header #}
+<div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.25rem;">
+  <div style="flex:1;">
+    <h1 style="font-size:1.3rem;">{{ project['title'] }}</h1>
+    {% if project['description'] %}
+    <p class="text-muted text-sm" style="margin-top:0.3rem;">{{ project['description'] }}</p>
+    {% endif %}
+    <div style="display:flex; gap:0.75rem; margin-top:0.5rem; flex-wrap:wrap;">
+      <span class="text-muted text-sm">&#8250; {{ goal['title'] }}</span>
+      <span class="badge badge-todo" style="font-size:0.7rem;">P{{ project['priority'] }}</span>
+      {% if project['deadline'] %}
+      <span class="text-muted text-sm">due {{ project['deadline'] }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <a href="/projects/{{ project['id'] }}/export.md" class="btn btn-ghost btn-sm" download>&#11123; Export .md</a>
+</div>
+
+{# Add task form #}
+<details id="add-task-details" style="margin-bottom:1.5rem;">
+  <summary class="btn btn-primary btn-sm" style="display:inline-flex; cursor:pointer;">+ Add Task</summary>
+  <form class="inline-form mt-1"
+        hx-post="/tasks"
+        hx-target="#task-list"
+        hx-swap="beforeend"
+        hx-on::after-request="this.reset(); document.getElementById('add-task-details').removeAttribute('open')">
+    <input type="hidden" name="project_id" value="{{ project['id'] }}" />
+    <div class="form-group">
+      <label>Task title</label>
+      <input type="text" name="title" required placeholder="e.g. Write unit tests" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Est. minutes</label>
+        <input type="number" name="estimated_minutes" value="45" min="5" max="480" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description (optional)</label>
+      <textarea name="description" rows="2" placeholder="What needs to be done?"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Add Task</button>
+  </form>
+</details>
+
+{# Task list #}
+{% if tasks %}
+<div id="task-list" style="display:flex; flex-direction:column; gap:0.4rem;">
+  {% for task in tasks %}
+    {% include "partials/task_row.html" %}
+  {% endfor %}
+</div>
+{% else %}
+<div id="task-list" style="display:flex; flex-direction:column; gap:0.4rem;"></div>
+<div class="empty-state">No tasks yet. Add one above.</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,70 @@
+{% set s = task['status'] if task is mapping else task.status %}
+{% set tid = task['id'] if task is mapping else task.id %}
+{% set ttitle = task['title'] if task is mapping else task.title %}
+{% set tdesc = task['description'] if task is mapping else task.description %}
+{% set tmin = task['estimated_minutes'] if task is mapping else task.estimated_minutes %}
+{% set ptitle = project['title'] if project is mapping else (project.title if project else '—') %}
+
+<div class="task-card status-{{ s }}" id="task-{{ tid }}">
+  <div class="task-card-header">
+    <div>
+      <div class="task-card-title">{{ ttitle }}</div>
+      <div class="task-card-meta mt-1">
+        <span class="badge badge-{{ s }}">{{ s.replace('_', ' ') }}</span>
+        <span class="text-muted">{{ ptitle }}</span>
+        <span class="text-muted">&#9201; {{ tmin }}m</span>
+      </div>
+    </div>
+  </div>
+
+  {% if tdesc %}
+  <p class="text-sm text-muted">{{ tdesc }}</p>
+  {% endif %}
+
+  {# Active session panel #}
+  {% if session %}
+  {% set sid = session['id'] if session is mapping else session.id %}
+  {% set sat = session['started_at'] if session is mapping else session.started_at %}
+  <div class="session-panel" data-timer="{{ tid }}" data-started-at="{{ sat }}">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem;">
+      <div>
+        <div style="font-size:0.75rem; color:var(--muted); margin-bottom:0.2rem;">SESSION IN PROGRESS</div>
+        <div class="timer-display" id="{{ tid }}-clock">0:00</div>
+      </div>
+    </div>
+    <form hx-post="/sessions/{{ sid }}/end"
+          hx-target="#task-{{ tid }}"
+          hx-swap="outerHTML"
+          style="display:flex; flex-direction:column; gap:0.5rem;">
+      <input type="text" name="notes" placeholder="Optional notes…" />
+      <button type="submit" class="btn btn-success btn-sm">&#10003; End Session</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {# Action buttons (hide when done/skipped or session active) #}
+  {% if s not in ('done', 'skipped') %}
+  <div class="task-card-actions">
+    {% if not session %}
+    <button class="btn btn-primary btn-sm"
+            hx-post="/tasks/{{ tid }}/start"
+            hx-target="#task-{{ tid }}"
+            hx-swap="outerHTML">
+      &#9654; Start
+    </button>
+    <button class="btn btn-success btn-sm"
+            hx-post="/tasks/{{ tid }}/done"
+            hx-target="#task-{{ tid }}"
+            hx-swap="outerHTML">
+      &#10003; Done
+    </button>
+    <button class="btn btn-ghost btn-sm"
+            hx-post="/tasks/{{ tid }}/skip"
+            hx-target="#task-{{ tid }}"
+            hx-swap="outerHTML">
+      &#8594; Skip
+    </button>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

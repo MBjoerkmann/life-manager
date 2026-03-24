@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Projects — Life Manager{% endblock %}
+
+{% block content %}
+<div class="section-header" style="margin-bottom:1.5rem;">
+  <h1>Projects</h1>
+  <a href="/goals" class="btn btn-ghost btn-sm">Manage Goals</a>
+</div>
+
+{% if groups %}
+  {% for group in groups %}
+  <div class="section" style="margin-top:1.25rem;">
+    <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+      <span class="priority-pip pri-{{ group.goal['priority'] }}"></span>
+      <span style="font-size:0.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;">{{ group.goal['title'] }}</span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:0.4rem;">
+      {% for item in group.projects %}
+        {% set p = item.project %}
+        {% set tasks = item.tasks %}
+        {% set done_count = tasks|selectattr('status', 'equalto', 'done')|list|length %}
+        {% set total_count = tasks|length %}
+
+      <div class="project-item" id="project-card-{{ p['id'] }}" style="flex-direction:column; align-items:stretch; padding:0;">
+        <details style="width:100%;">
+          <summary style="display:flex; align-items:center; gap:0.6rem; padding:0.65rem 1rem; cursor:pointer;">
+            <span class="priority-pip pri-{{ p['priority'] }}"></span>
+            <span style="font-weight:500; flex:1;">{{ p['title'] }}</span>
+            {% if p['description'] %}
+            <span class="text-muted text-sm" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:250px;">{{ p['description'] }}</span>
+            {% endif %}
+            {% if p['deadline'] %}
+            <span class="text-muted text-sm" style="white-space:nowrap;">due {{ p['deadline'] }}</span>
+            {% endif %}
+            {% if total_count > 0 %}
+            <span class="text-muted" style="font-size:0.72rem;">{{ done_count }}/{{ total_count }}</span>
+            {% endif %}
+          </summary>
+
+          <div style="padding:0 1rem 0.75rem; border-top:1px solid var(--border);">
+            {% if tasks %}
+            <div style="display:flex; flex-direction:column; gap:0.3rem; margin-top:0.6rem;">
+              {% for t in tasks %}
+                {% set tstatus = t['status'] %}
+              <div style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.5rem; border-radius:var(--radius-sm);{% if tstatus == 'done' %} opacity:0.5;{% elif tstatus == 'skipped' %} opacity:0.35;{% endif %}">
+                {% if tstatus == 'done' %}
+                  <span style="color:var(--green); font-size:0.8rem;">&#10003;</span>
+                {% elif tstatus == 'in_progress' %}
+                  <span style="color:var(--accent); font-size:0.8rem;">&#9654;</span>
+                {% elif tstatus == 'skipped' %}
+                  <span style="color:var(--muted); font-size:0.8rem;">&#8212;</span>
+                {% else %}
+                  <span style="color:var(--muted); font-size:0.8rem;">&#9675;</span>
+                {% endif %}
+                <a href="/tasks/{{ t['id'] }}/plan" class="text-sm" style="color:var(--text); flex:1;">{{ t['title'] }}</a>
+                {% if t['estimated_minutes'] %}<span class="text-muted" style="font-size:0.7rem;">{{ t['estimated_minutes'] }}m</span>{% endif %}
+                <span class="badge badge-{{ tstatus }}" style="font-size:0.65rem;">{{ tstatus }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted text-sm" style="margin-top:0.5rem;">No tasks yet.</p>
+            {% endif %}
+            <div style="margin-top:0.5rem;">
+              <a href="/projects/{{ p['id'] }}" class="text-muted text-sm" style="font-size:0.75rem;">Open project &#8250;</a>
+            </div>
+          </div>
+        </details>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="empty-state">No projects yet. <a href="/goals">Create a goal</a> to get started.</div>
+{% endif %}
+
+{% endblock %}

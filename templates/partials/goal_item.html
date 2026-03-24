@@ -1,0 +1,140 @@
+{% set gid   = goal['id']          if goal is mapping else goal.id %}
+{% set gtitle = goal['title']       if goal is mapping else goal.title %}
+{% set gdesc  = goal['description'] if goal is mapping else goal.description %}
+{% set gpri   = goal['priority']    if goal is mapping else goal.priority %}
+
+<div class="goal-item" id="goal-{{ gid }}">
+  <details>
+    <summary class="goal-item-header" style="cursor:pointer;">
+      <div style="display:flex; align-items:center; gap:0.6rem; flex:1; min-width:0;">
+        <span class="priority-pip pri-{{ gpri }}"></span>
+        <span style="font-weight:600;">{{ gtitle }}</span>
+        {% if gdesc %}<span class="text-muted text-sm" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">— {{ gdesc }}</span>{% endif %}
+      </div>
+      <div style="display:flex; gap:0.4rem; align-items:center;" onclick="event.stopPropagation();">
+        <span class="badge badge-todo" style="font-size:0.7rem;">P{{ gpri }}</span>
+        <span class="text-muted text-sm">{{ projects|length }} project{{ 's' if projects|length != 1 }}</span>
+        <a href="/goals/{{ gid }}/export.md" class="btn btn-ghost btn-sm" download>&#11123;</a>
+        <a href="/goals/{{ gid }}/plan" class="btn btn-ghost btn-sm">&#10024; Plan</a>
+        <button class="btn btn-danger btn-sm"
+                hx-post="/goals/{{ gid }}/delete"
+                hx-target="#goal-{{ gid }}"
+                hx-swap="outerHTML"
+                hx-confirm="Delete this goal and all its projects/tasks?">
+          &#10005;
+        </button>
+      </div>
+    </summary>
+
+    <div class="goal-item-body">
+      <div class="project-list" id="projects-{{ gid }}">
+        {% for item in projects %}
+          {% set p = item.project if item is mapping else item %}
+          {% set tasks = item.tasks if item is mapping else [] %}
+          {% set pid    = p['id']    if p is mapping else p.id %}
+          {% set ptitle = p['title'] if p is mapping else p.title %}
+          {% set ppri   = p['priority'] if p is mapping else p.priority %}
+          {% set pdeadline = p['deadline'] if p is mapping else p.deadline %}
+          {% set pdesc  = p['description'] if p is mapping else p.description %}
+          {% set done_count = tasks|selectattr('status', 'equalto', 'done')|list|length if tasks else 0 %}
+          {% set total_count = tasks|length if tasks else 0 %}
+
+          <div class="project-item" id="project-{{ pid }}" style="flex-direction:column; align-items:stretch; padding:0;">
+            <details style="width:100%;">
+              <summary style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; padding:0.65rem 1rem; cursor:pointer;">
+                <div style="display:flex; align-items:center; gap:0.5rem; flex:1; min-width:0;">
+                  <span class="priority-pip pri-{{ ppri }}"></span>
+                  <a href="/projects/{{ pid }}" class="text-sm" style="font-weight:500; color:var(--text);" onclick="event.stopPropagation();">{{ ptitle }}</a>
+                  {% if pdeadline %}<span class="text-muted text-sm">due {{ pdeadline }}</span>{% endif %}
+                  {% if total_count > 0 %}
+                  <span class="text-muted" style="font-size:0.72rem;">{{ done_count }}/{{ total_count }} done</span>
+                  {% endif %}
+                </div>
+                <div style="display:flex; gap:0.4rem; align-items:center;" onclick="event.stopPropagation();">
+                  <button class="btn btn-danger btn-sm"
+                          hx-post="/projects/{{ pid }}/delete"
+                          hx-target="#project-{{ pid }}"
+                          hx-swap="outerHTML"
+                          hx-confirm="Delete this project and all its tasks?">
+                    &#10005;
+                  </button>
+                </div>
+              </summary>
+
+              <div style="padding:0 1rem 0.75rem; border-top:1px solid var(--border);">
+                {% if tasks %}
+                <div style="display:flex; flex-direction:column; gap:0.3rem; margin-top:0.6rem;">
+                  {% for t in tasks %}
+                    {% set tid = t['id'] if t is mapping else t.id %}
+                    {% set ttitle = t['title'] if t is mapping else t.title %}
+                    {% set tstatus = t['status'] if t is mapping else t.status %}
+                    {% set test_min = t['estimated_minutes'] if t is mapping else t.estimated_minutes %}
+                  <div style="display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.5rem; border-radius:var(--radius-sm);{% if tstatus == 'done' %} opacity:0.5;{% elif tstatus == 'skipped' %} opacity:0.35;{% endif %}">
+                    {% if tstatus == 'done' %}
+                      <span style="color:var(--green); font-size:0.8rem;">&#10003;</span>
+                    {% elif tstatus == 'in_progress' %}
+                      <span style="color:var(--accent); font-size:0.8rem;">&#9654;</span>
+                    {% elif tstatus == 'skipped' %}
+                      <span style="color:var(--muted); font-size:0.8rem;">&#8212;</span>
+                    {% else %}
+                      <span style="color:var(--muted); font-size:0.8rem;">&#9675;</span>
+                    {% endif %}
+                    <a href="/tasks/{{ tid }}/plan" class="text-sm" style="color:var(--text); flex:1;">{{ ttitle }}</a>
+                    {% if test_min %}<span class="text-muted" style="font-size:0.7rem;">{{ test_min }}m</span>{% endif %}
+                    <span class="badge badge-{{ tstatus }}" style="font-size:0.65rem;">{{ tstatus }}</span>
+                  </div>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-sm" style="margin-top:0.5rem;">No tasks yet.</p>
+                {% endif %}
+                <div style="margin-top:0.5rem;">
+                  <a href="/projects/{{ pid }}" class="text-muted text-sm" style="font-size:0.75rem;">Open project &#8250;</a>
+                </div>
+              </div>
+            </details>
+          </div>
+        {% else %}
+          <p class="text-muted text-sm">No projects yet.</p>
+        {% endfor %}
+      </div>
+
+      {# Add project inline form #}
+      <details class="mt-2" style="margin-top:0.75rem;">
+        <summary class="btn btn-ghost btn-sm" style="display:inline-flex;">+ Add Project</summary>
+        <form class="inline-form mt-1"
+              hx-post="/projects"
+              hx-target="#projects-{{ gid }}"
+              hx-swap="beforeend"
+              hx-on::after-request="this.reset(); this.closest('details').removeAttribute('open')">
+          <input type="hidden" name="goal_id" value="{{ gid }}" />
+          <div class="form-group">
+            <label>Project title</label>
+            <input type="text" name="title" required placeholder="e.g. Build portfolio site" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Priority (1–5)</label>
+              <select name="priority">
+                <option value="5">5 — Critical</option>
+                <option value="4">4 — High</option>
+                <option value="3" selected>3 — Medium</option>
+                <option value="2">2 — Low</option>
+                <option value="1">1 — Someday</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Deadline (optional)</label>
+              <input type="date" name="deadline" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Description (optional)</label>
+            <textarea name="description" rows="2" placeholder="What does this project achieve?"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">Add Project</button>
+        </form>
+      </details>
+    </div>
+  </details>
+</div>

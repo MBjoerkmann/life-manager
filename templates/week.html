@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Week — Life Manager{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1rem;">
+  <h1>Week of {{ week_label }}</h1>
+  <div style="display:flex; gap:0.5rem;">
+    {% if ai_enabled %}
+      {% if has_plan %}
+    <form method="post" action="/week/plan" style="display:inline;">
+      <button type="submit" class="btn btn-ghost btn-sm">Regenerate plan</button>
+    </form>
+      {% else %}
+    <form method="post" action="/week/plan" style="display:inline;">
+      <button type="submit" class="btn btn-primary btn-sm">Generate week plan</button>
+    </form>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% if overview %}
+<div class="card" style="margin-bottom:1.5rem; border-color:rgba(79,142,247,0.15); background:rgba(79,142,247,0.02);">
+  <div style="font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.4rem;">Week Strategy</div>
+  <p style="font-size:0.92rem; line-height:1.6;">{{ overview }}</p>
+</div>
+{% endif %}
+
+{# Week grid #}
+<div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:0.5rem;">
+  {# Day headers #}
+  {% for day in days %}
+  <div style="text-align:center; padding-bottom:0.5rem;">
+    <div style="font-size:0.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;">{{ day.name }}</div>
+    <div style="font-size:1.1rem; font-weight:{% if day.is_today %}700{% else %}400{% endif %}; color:{% if day.is_today %}var(--accent){% else %}var(--text){% endif %};">{{ day.day_num }}</div>
+  </div>
+  {% endfor %}
+
+  {# Day columns #}
+  {% for day in days %}
+  <div class="card" style="padding:0.6rem 0.5rem; min-height:120px; {% if day.is_today %}border-color:rgba(79,142,247,0.35);{% endif %}">
+    {% if day.theme %}
+    <div style="font-size:0.65rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem; font-weight:600;">{{ day.theme }}</div>
+    {% endif %}
+
+    {% if day.tasks %}
+      {% for t in day.tasks %}
+      <div style="margin-bottom:0.5rem; padding:0.35rem 0.4rem; background:var(--surface2); border-radius:var(--radius-sm); border-left:3px solid {% if t.status == 'done' %}var(--green){% elif t.status == 'skipped' %}#555{% elif t.status == 'in_progress' %}var(--accent){% else %}var(--border){% endif %}; position:relative;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.25rem;">
+          <div style="font-size:0.78rem; font-weight:500; {% if t.status == 'done' %}opacity:0.5; text-decoration:line-through;{% elif t.status == 'skipped' %}opacity:0.35;{% endif %}">{{ t.title }}</div>
+          {% if t.status not in ('done', 'skipped') %}
+          <form method="post" action="/tasks/{{ t.id }}/unschedule" style="display:inline; flex-shrink:0;">
+            <button type="submit" style="background:none; border:none; color:var(--muted); font-size:0.7rem; cursor:pointer; padding:0; line-height:1;" title="Move to backlog">&#10005;</button>
+          </form>
+          {% endif %}
+        </div>
+        <div style="font-size:0.65rem; color:var(--muted);">{{ t.project_title }} · {{ t.estimated_minutes }}m</div>
+      </div>
+      {% endfor %}
+    {% else %}
+      {% if day.theme and 'rest' in day.theme | lower %}
+      <div style="font-size:0.75rem; color:var(--muted); text-align:center; padding-top:1rem;">Rest</div>
+      {% else %}
+      <div style="font-size:0.75rem; color:#333; text-align:center; padding-top:1rem;">—</div>
+      {% endif %}
+    {% endif %}
+
+    {# Day total #}
+    {% set total = day.tasks | sum(attribute='estimated_minutes') if day.tasks else 0 %}
+    {% if total > 0 %}
+    <div style="font-size:0.65rem; color:var(--muted); text-align:right; margin-top:0.35rem; border-top:1px solid var(--border); padding-top:0.3rem;">{{ total }}m</div>
+    {% endif %}
+
+    {# Add task to this day #}
+    {% if unscheduled %}
+    <details style="margin-top:0.4rem;">
+      <summary style="font-size:0.65rem; color:var(--muted); cursor:pointer; list-style:none; text-align:center;">+ add</summary>
+      <form method="post" action="/week/schedule" style="margin-top:0.3rem;">
+        <input type="hidden" name="scheduled_date" value="{{ day.date_str }}" />
+        <select name="task_id" style="font-size:0.7rem; padding:0.2rem 0.3rem; width:100%; margin-bottom:0.3rem;">
+          {% for ut in unscheduled %}
+          <option value="{{ ut.id }}">{{ ut.title }} ({{ ut.project_title }})</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-ghost btn-sm" style="font-size:0.65rem; padding:0.15rem 0.4rem; width:100%;">Schedule</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{# Mobile-friendly list view (visible on small screens) #}
+<style>
+  @media (max-width: 700px) {
+    div[style*="grid-template-columns:repeat(7"] {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+{% endblock %}

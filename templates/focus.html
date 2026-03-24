@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Focus — Life Manager</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0a;
+      color: #e2e2e2;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .focus {
+      text-align: center;
+      max-width: 480px;
+      width: 100%;
+      padding: 2rem;
+    }
+
+    .focus-goal {
+      color: #555;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 0.25rem;
+    }
+
+    .focus-project {
+      color: #777;
+      font-size: 0.85rem;
+      margin-bottom: 2rem;
+    }
+
+    .focus-task {
+      font-size: 1.5rem;
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: -0.3px;
+    }
+
+    .focus-description {
+      color: #777;
+      font-size: 0.9rem;
+      margin-top: 0.75rem;
+    }
+
+    .focus-timer {
+      font-size: 5rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #4f8ef7;
+      letter-spacing: -3px;
+      margin: 2.5rem 0 0.5rem;
+      line-height: 1;
+    }
+
+    .focus-estimate {
+      color: #333;
+      font-size: 0.8rem;
+      margin-bottom: 3rem;
+    }
+
+    .focus-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .focus-input {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 10px;
+      color: #e2e2e2;
+      font-size: 0.9rem;
+      padding: 0.85rem 1rem;
+      width: 100%;
+      outline: none;
+      font-family: inherit;
+      text-align: center;
+      transition: border-color 0.15s;
+    }
+
+    .focus-input:focus { border-color: #4f8ef7; }
+    .focus-input::placeholder { color: #444; }
+
+    .focus-btn {
+      background: rgba(62, 207, 142, 0.12);
+      color: #3ecf8e;
+      border: 1px solid rgba(62, 207, 142, 0.25);
+      border-radius: 10px;
+      padding: 0.85rem 1.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-family: inherit;
+    }
+
+    .focus-btn:hover { background: rgba(62, 207, 142, 0.2); }
+
+    .focus-exit {
+      position: fixed;
+      top: 1.25rem;
+      right: 1.5rem;
+      color: #333;
+      font-size: 0.78rem;
+      text-decoration: none;
+      letter-spacing: 0.03em;
+      transition: color 0.15s;
+    }
+
+    .focus-exit:hover { color: #666; }
+  </style>
+</head>
+<body>
+  <a href="/?nofocus=1" class="focus-exit">exit focus</a>
+
+  <div class="focus">
+    <div class="focus-goal">{{ goal_title }}</div>
+    <div class="focus-project">{{ project_title }}</div>
+
+    <div class="focus-task">{{ task_title }}</div>
+    {% if task_description %}
+    <div class="focus-description">{{ task_description }}</div>
+    {% endif %}
+
+    <div class="focus-timer" id="timer">0:00</div>
+    <div class="focus-estimate">{{ estimated_minutes }} min estimated</div>
+
+    <form class="focus-form" method="post" action="/sessions/{{ session_id }}/end">
+      <input type="hidden" name="focus" value="1" />
+      <input type="text" name="notes" class="focus-input"
+             placeholder="What did you accomplish?" autocomplete="off" />
+      <button type="submit" class="focus-btn">Complete</button>
+    </form>
+    <form method="post" action="/tasks/{{ task_id }}/pause" style="margin-top:1rem;">
+      <button type="submit" style="background:none; border:none; color:#444; font-size:0.8rem; cursor:pointer;">&#9646;&#9646; pause &amp; return to backlog</button>
+    </form>
+  </div>
+
+  <script>
+    (function() {
+      var start = new Date('{{ started_at }}Z').getTime();
+      var el = document.getElementById('timer');
+      function tick() {
+        var diff = Math.floor((Date.now() - start) / 1000);
+        var h = Math.floor(diff / 3600);
+        var m = Math.floor((diff % 3600) / 60);
+        var s = diff % 60;
+        el.textContent = h > 0
+          ? h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
+          : m + ':' + String(s).padStart(2, '0');
+      }
+      tick();
+      setInterval(tick, 1000);
+    })();
+  </script>
+</body>
+</html>
